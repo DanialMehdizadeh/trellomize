@@ -65,7 +65,6 @@ class Task:
     def __repr__(self):
         return f"Task ID: {self.id}, Title: {self.title}, Status: {self.status.name}"
 
-
 def load_users():
     try:
         with open(DATABASE_FILE, 'r') as file:
@@ -87,6 +86,8 @@ def save_users(users):
     with open(DATABASE_FILE, 'w') as file:
         json.dump(users, file, indent=4, default=lambda o: o.toJSON())
 
+def log_user_action(action):
+    logger.info(action)
 
 def register():
     users = load_users()
@@ -103,7 +104,6 @@ def register():
     users[username] = {"email": email, "password": hashed_password.decode(), "active": True, "projects": {"managed": [], "member": []}}
     save_users(users)
     console.print("User registered successfully!", style="bold green")
-
 
 def login():
     users = load_users()
@@ -125,7 +125,6 @@ def login():
     else:
         console.print("Error: Incorrect password!", style="bold red")
 
-
 def disable_account():
     users = load_users()
     console.print("Disable a user account", style="bold blue")
@@ -137,33 +136,6 @@ def disable_account():
         console.print(f"Account for {username} has been disabled.", style="bold green")
     else:
         console.print("Error: Username does not exist!", style="bold red")
-
-def user_page(user, users):
-    console.print("Welcome to your user page", style="bold magenta")
-    while True:
-        console.print("1: Create Project\n2: Add Member to Project\n3: Remove Member from Project\n4: Create Task\n5: View Managed Projects\n6: View Member Projects\n7: Delete Project\n8: View Tasks\n9: Logout", style="bold yellow")
-        choice = console.input("Choose an option: ")
-        if choice == "1":
-            create_project(user, users)
-        elif choice == "2":
-            add_member(user, users)
-        elif choice == "3":
-            remove_member(user, users)
-        elif choice == "4":
-            create_task(user, users)
-        elif choice == "5":
-            view_managed_projects(user)
-        elif choice == "6":
-            view_member_projects(user)
-        elif choice == "7":
-            delete_project(user)
-        elif choice == "8":
-            view_tasks(user)
-        elif choice == "9":
-            console.print("Logging out. Goodbye!", style="bold cyan")
-            break
-        else:
-            console.print("Invalid option. Please try again.", style="bold red")
 
 def create_project(user, users):
     console.print("Create Project", style="bold blue")
@@ -214,6 +186,16 @@ def remove_member(user, users):
     else:
         console.print("Error: Project ID not found!", style="bold red")
 
+def delete_project(user):
+    project_id = console.input("Enter project ID to delete: ")
+    for project in user["projects"]["managed"]:
+        if project["id"] == project_id:
+            user["projects"]["managed"].remove(project)
+            save_users(users)
+            console.print("Project deleted successfully!", style="bold green")
+            return
+    console.print("Error: Project ID not found!", style="bold red")
+
 def create_task(user, users):
     project_id = console.input("Enter project ID to add task: ")
     if any(project["id"] == project_id for project in user["projects"]["managed"]):
@@ -229,6 +211,33 @@ def create_task(user, users):
         console.print("Task created successfully!", style="bold green")
     else:
         console.print("Error: Project ID not found!", style="bold red")
+
+def user_page(user, users):
+    console.print("Welcome to your user page", style="bold magenta")
+    while True:
+        console.print("1: Create Project\n2: Add Member to Project\n3: Remove Member from Project\n4: Create Task\n5: View Managed Projects\n6: View Member Projects\n7: Delete Project\n8: View Tasks\n9: Logout", style="bold yellow")
+        choice = console.input("Choose an option: ")
+        if choice == "1":
+            create_project(user, users)
+        elif choice == "2":
+            add_member(user, users)
+        elif choice == "3":
+            remove_member(user, users)
+        elif choice == "4":
+            create_task(user, users)
+        elif choice == "5":
+            view_managed_projects(user)
+        elif choice == "6":
+            view_member_projects(user)
+        elif choice == "7":
+            delete_project(user)
+        elif choice == "8":
+            view_tasks(user)
+        elif choice == "9":
+            console.print("Logging out. Goodbye!", style="bold cyan")
+            break
+        else:
+            console.print("Invalid option. Please try again.", style="bold red")
 
 def view_managed_projects(user):
     console.print("Managed Projects:", style="bold cyan")
@@ -287,18 +296,6 @@ def view_task_details(project, task_id):
             break
     else:
         console.print("Error: Task ID not found!", style="bold red")
-
-def delete_project(user):
-    project_id = console.input("Enter project ID to delete: ")
-    for project in user["projects"]["managed"]:
-        if project["id"] == project_id:
-            user["projects"]["managed"].remove(project)
-            save_users(users)
-            console.print("Project deleted successfully!", style="bold green")
-            return
-    console.print("Error: Project ID not found!", style="bold red")
-
-
 
 def main():
     console.print("Welcome to the User Management System", style="bold magenta")
