@@ -68,11 +68,11 @@ def login():
         return
     
     password = getpass("Password: ")
-    #if bcrypt.checkpw(password.encode('utf-8'), users[username]["password"].encode()):
-        # console.print("Logged in successfully!", style="bold green")
-        # user_page(users[username], users)
-    #else:
-        #console.print("Error: Incorrect password!", style="bold red")
+    if bcrypt.checkpw(password.encode('utf-8'), users[username]["password"].encode()):
+        console.print("Logged in successfully!", style="bold green")
+        user_page(users[username], users)
+    else:
+        console.print("Error: Incorrect password!", style="bold red")
 
 
 def disable_account():
@@ -86,6 +86,35 @@ def disable_account():
         console.print(f"Account for {username} has been disabled.", style="bold green")
     else:
         console.print("Error: Username does not exist!", style="bold red")
+
+def user_page(user, users):
+    console.print("Welcome to your user page", style="bold magenta")
+    while True:
+        console.print("1: Create Project\n2: Add Member to Project\n3: Remove Member from Project\n4: Create Task\n5: View Managed Projects\n6: View Member Projects\n7: Delete Project\n8: View Tasks\n9: Logout", style="bold yellow")
+        choice = console.input("Choose an option: ")
+        if choice == "1":
+            create_project(user, users)
+        elif choice == "2":
+            add_member(user, users)
+        elif choice == "3":
+            remove_member(user, users)
+        elif choice == "4":
+            create_task(user, users)
+        elif choice == "5":
+            view_managed_projects(user)
+        elif choice == "6":
+            view_member_projects(user)
+        elif choice == "7":
+            delete_project(user)
+        elif choice == "8":
+            view_tasks(user)
+        elif choice == "9":
+            console.print("Logging out. Goodbye!", style="bold cyan")
+            break
+        else:
+            console.print("Invalid option. Please try again.", style="bold red")
+
+
 
 
 def main():
