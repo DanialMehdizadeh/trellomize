@@ -100,37 +100,97 @@ def register():
     save_users(users)
     console.print("User registered successfully!", style="bold green")
 
+def load_users():
+    try:
+        with open(DATABASE_FILE, 'r') as file:
+            data = file.read()
+            if not data:
+                return {}  
+            users = json.loads(data)
+            # Convert status and priority fields to Enums
+            for user in users.values():
+                for project in user.get('projects', {}).get('managed', []):
+                    for task in project.get('tasks', []):
+                        task['status'] = Status[task['status']]
+                        task['priority'] = Priority[task['priority']]
+            return users
+    except FileNotFoundError:
+        logger.error("Database file not found!")
+        return {} 
+    except json.decoder.JSONDecodeError:
+        logger.error("Invalid JSON format in database file!")
+        return {}
+    except Exception as e:
+        logger.error(f"Error: {e}")
+        return {}
+
+def save_users(users):
+    # Convert Enums to their names for serialization
+    def serialize(obj):
+        if isinstance(obj, (Status, Priority)):
+            return obj.name
+        raise TypeError("Type not serializable")
+        
+    with open(DATABASE_FILE, 'w') as file:
+        json.dump(users, file, indent=4, default=serialize)
+
+def log_user_action(action):
+    logger.info(action)
+
+def register():
+    users = load_users()
+    st.title("Register a new user")
+    
+    email = st.text_input("Email")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    
+    if st.button("Register"):
+        if email in [user['email'] for user in users.values()] or username in users:
+            st.error("Error: Email or Username already exists!")
+            return
+
+        hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+        users[username] = {"email": email, "password": hashed_password.decode(), "active": True, "projects": {"managed": [], "member": []}}
+        save_users(users)
+        st.success("User registered successfully!")
+
 def login():
     users = load_users()
-    console.print("Login to your account", style="bold blue")
+    st.title("Login to your account")
 
-    username = console.input("Username: ")
-    if username not in users:
-        console.print("Error: Username does not exist!", style="bold red")
-        return
-
-    if not users[username]["active"]:
-        console.print("Error: This account is disabled.", style="bold red")
-        return
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
     
-    password = getpass("Password: ")
-    if bcrypt.checkpw(password.encode('utf-8'), users[username]["password"].encode()):
-        console.print("Logged in successfully!", style="bold green")
-        user_page(users[username], users)
-    else:
-        console.print("Error: Incorrect password!", style="bold red")
+    if st.button("Login"):
+        if username not in users:
+            st.error("Error: Username does not exist!")
+            return
+
+        if not users[username]["active"]:
+            st.error("Error: This account is disabled.")
+            return
+        
+        if bcrypt.checkpw(password.encode('utf-8'), users[username]["password"].encode()):
+            st.session_state.logged_in = True
+            st.session_state.username = username
+            st.success("Logged in successfully!")
+        else:
+            st.error("Error: Incorrect password!")
 
 def disable_account():
     users = load_users()
-    console.print("Disable a user account", style="bold blue")
+    st.title("Disable a user account")
 
-    username = console.input("Enter the username to disable: ")
-    if username in users:
-        users[username]["active"] = False
-        save_users(users)
-        console.print(f"Account for {username} has been disabled.", style="bold green")
-    else:
-        console.print("Error: Username does not exist!", style="bold red")
+    username = st.text_input("Enter the username to disable")
+    
+    if st.button("Disable Account"):
+        if username in users:
+            users[username]["active"] = False
+            save_users(users)
+            st.success(f"Account for {username} has been disabled.")
+        else:
+            st.error("Error: Username does not exist!")
 
 def create_project(user, users):
     console.print("Create Project", style="bold blue")
