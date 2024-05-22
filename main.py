@@ -193,80 +193,88 @@ def disable_account():
             st.error("Error: Username does not exist!")
 
 def create_project(user, users):
-    console.print("Create Project", style="bold blue")
-    project_id = console.input("Enter project ID: ")  # Prompt the user for project ID
-    title = console.input("Enter project title: ")
+    st.title("Create Project")
     
-    try:
-        description = console.input("Enter project description: ")
-    except KeyboardInterrupt:
-        console.print("\nOperation canceled by user.", style="bold red")
-        return
-    except EOFError:
-        console.print("\nError: End of file encountered.", style="bold red")
-        return
+    project_id = st.text_input("Enter project ID")
+    title = st.text_input("Enter project title")
+    description = st.text_area("Enter project description")
 
-    # Initialize tasks list for the project
-    tasks = []
-
-    user["projects"]["managed"].append({"id": project_id, "title": title, "description": description, "members": [], "tasks": tasks})
-    save_users(users)
-    console.print("Project created successfully!", style="bold green")
+    if st.button("Create Project"):
+        tasks = []
+        user["projects"]["managed"].append({"id": project_id, "title": title, "description": description, "members": [], "tasks": tasks})
+        save_users(users)
+        st.success("Project created successfully!")
 
 def add_member(user, users):
-    project_id = console.input("Enter project ID to add member: ")
-    if any(project["id"] == project_id for project in user["projects"]["managed"]):
-        project = next(project for project in user["projects"]["managed"] if project["id"] == project_id)
-        username = console.input("Enter username to add as a member: ")
-        if username in users:
-            project["members"].append(username)
-            save_users(users)
-            console.print(f"User {username} added as a member.", style="bold green")
+    st.title("Add Member to Project")
+    
+    project_id = st.text_input("Enter project ID to add member")
+    username = st.text_input("Enter username to add as a member")
+
+    if st.button("Add Member"):
+        if any(project["id"] == project_id for project in user["projects"]["managed"]):
+            project = next(project for project in user["projects"]["managed"] if project["id"] == project_id)
+            if username in users:
+                project["members"].append(username)
+                save_users(users)
+                st.success(f"User {username} added as a member.")
+            else:
+                st.error("Error: Username does not exist!")
         else:
-            console.print("Error: Username does not exist!", style="bold red")
-    else:
-        console.print("Error: Project ID not found!", style="bold red")
+            st.error("Error: Project ID not found!")
 
 def remove_member(user, users):
-    project_id = console.input("Enter project ID to remove member: ")
-    if any(project["id"] == project_id for project in user["projects"]["managed"]):
-        project = next(project for project in user["projects"]["managed"] if project["id"] == project_id)
-        username = console.input("Enter username to remove from members: ")
-        if username in project["members"]:
-            project["members"].remove(username)
-            save_users(users)
-            console.print(f"User {username} removed from members.", style="bold green")
-        else:
-            console.print("Error: Username is not a member!", style="bold red")
-    else:
-        console.print("Error: Project ID not found!", style="bold red")
+    st.title("Remove Member from Project")
+    
+    project_id = st.text_input("Enter project ID to remove member")
+    username = st.text_input("Enter username to remove from members")
 
-def delete_project(user):
-    project_id = console.input("Enter project ID to delete: ")
-    for project in user["projects"]["managed"]:
-        if project["id"] == project_id:
-            user["projects"]["managed"].remove(project)
-            save_users(users)
-            console.print("Project deleted successfully!", style="bold green")
-            return
-    console.print("Error: Project ID not found!", style="bold red")
+    if st.button("Remove Member"):
+        if any(project["id"] == project_id for project in user["projects"]["managed"]):
+            project = next(project for project in user["projects"]["managed"] if project["id"] == project_id)
+            if username in project["members"]:
+                project["members"].remove(username)
+                save_users(users)
+                st.success(f"User {username} removed from members.")
+            else:
+                st.error("Error: Username is not a member!")
+        else:
+            st.error("Error: Project ID not found!")
+
+def delete_project(user, users):
+    st.title("Delete Project")
+    
+    project_id = st.text_input("Enter project ID to delete")
+
+    if st.button("Delete Project"):
+        for project in user["projects"]["managed"]:
+            if project["id"] == project_id:
+                user["projects"]["managed"].remove(project)
+                save_users(users)
+                st.success("Project deleted successfully!")
+                return
+        st.error("Error: Project ID not found!")
 
 def create_task(user, users):
-    project_id = console.input("Enter project ID to add task: ")
-    if any(project["id"] == project_id for project in user["projects"]["managed"]):
-        project = next(project for project in user["projects"]["managed"] if project["id"] == project_id)
-        title = console.input("Enter task title: ")
-        description = console.input("Enter task description: ")
-        priority = Priority[console.input("Enter task priority (CRITICAL, HIGH, MEDIUM, LOW): ").upper()]
-        assignees = project["members"]  # Assign task to all project members by default
-        task_id = str(uuid.uuid4())  # Generate a unique task ID
-        task = {"id": task_id, "title": title, "description": description, "priority": priority, "status": Status.BACKLOG, "assignees": assignees, "history": [], "comments": []}
-        project["tasks"].append(task)
-        save_users(users)
-        console.print("Task created successfully!", style="bold green")
-    else:
-        console.print("Error: Project ID not found!", style="bold red")
+    st.title("Create Task")
+    
+    project_id = st.text_input("Enter project ID to add task")
+    title = st.text_input("Enter task title")
+    description = st.text_area("Enter task description")
+    priority = st.selectbox("Enter task priority", ["CRITICAL", "HIGH", "MEDIUM", "LOW"])
 
+    if st.button("Create Task"):
+        if any(project["id"] == project_id for project in user["projects"]["managed"]):
+            project = next(project for project in user["projects"]["managed"] if project["id"] == project_id)
+            priority_enum = Priority[priority]
+            assignees = project["members"]
+            task_id = str(uuid.uuid4())
+            task = {"id": task_id, "title": title, "description": description, "priority": priority_enum, "status": Status.BACKLOG, "assignees": assignees, "history": [], "comments": []}
+            project["tasks"].append(task)
+            save_users(users)
+            st.success("Task created successfully!")
+        else:
+            st.error("Error: Project ID not found!")
 def user_page(user, users):
     console.print("Welcome to your user page", style="bold magenta")
     while True:
