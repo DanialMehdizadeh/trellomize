@@ -156,7 +156,6 @@ class UserActions:
             else:
                 st.error("Error: Username does not exist!")
 
-
 class ProjectManagement:
     def __init__(self, user, users):
         self.user = user
@@ -245,7 +244,6 @@ class ProjectManagement:
             else:
                 st.error("Error: Project ID not found!")
 
-            
 class UserPage:
     def __init__(self, user, users):
         self.user = user
@@ -326,27 +324,29 @@ class UserPage:
         st.session_state.username = None
         st.success("Logged out successfully!")
         st.experimental_rerun()        
+
 def main():
-    st.title("Welcome to the User Management System")
+    st.title("Trello Maze")
     if "logged_in" not in st.session_state:
         st.session_state.logged_in = False
         st.session_state.username = None
 
     if st.session_state.logged_in:
-        users = load_users()
+        users = UserDatabase.load_users()
         user = users[st.session_state.username]
         user["username"] = st.session_state.username  # Adding the username to user data
-        user_page(user, users)
+        user_page = UserPage(user, users)
+        user_page.display()
     else:
         options = ["Register", "Login", "Disable Account", "Exit"]
         choice = st.selectbox("Choose an option", options)
 
         if choice == "Register":
-            register()
+            UserActions.register()
         elif choice == "Login":
-            login()
+            UserActions.login()
         elif choice == "Disable Account":
-            disable_account()
+            UserActions.disable_account()
         elif choice == "Exit":
             st.write("Exiting the system. Goodbye!")
 
