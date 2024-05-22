@@ -31,7 +31,6 @@ class Status(Enum):
 
     def toJSON(self):
         return self.name
-
 class Task:
     def __init__(self, title, description, priority, assignees):
         self.id = str(uuid.uuid4())
