@@ -31,6 +31,7 @@ class Status(Enum):
 
     def toJSON(self):
         return self.name
+
 class Task:
     def __init__(self, title, description, priority, assignees):
         self.id = str(uuid.uuid4())
@@ -59,46 +60,6 @@ class Task:
 
     def __repr__(self):
         return f"Task ID: {self.id}, Title: {self.title}, Status: {self.status.name}"
-
-def load_users():
-    try:
-        with open(DATABASE_FILE, 'r') as file:
-            data = file.read()
-            if not data:
-                return {}  
-            return json.loads(data)
-    except FileNotFoundError:
-        logger.error("Database file not found!")
-        return {} 
-    except json.decoder.JSONDecodeError:
-        logger.error("Invalid JSON format in database file!")
-        return {}
-    except Exception as e:
-        logger.error(f"Error: {e}")
-        return {}
-
-def save_users(users):
-    with open(DATABASE_FILE, 'w') as file:
-        json.dump(users, file, indent=4, default=lambda o: o.toJSON())
-
-def log_user_action(action):
-    logger.info(action)
-
-def register():
-    users = load_users()
-    console.print("Register a new user", style="bold blue")
-    
-    email = console.input("Email: ")
-    username = console.input("Username: ")
-    if email in [user['email'] for user in users.values()] or username in users:
-        console.print("Error: Email or Username already exists!", style="bold red")
-        return
-
-    password = getpass("Password: ")
-    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
-    users[username] = {"email": email, "password": hashed_password.decode(), "active": True, "projects": {"managed": [], "member": []}}
-    save_users(users)
-    console.print("User registered successfully!", style="bold green")
 
 def load_users():
     try:
@@ -275,7 +236,7 @@ def create_task(user, users):
             st.success("Task created successfully!")
         else:
             st.error("Error: Project ID not found!")
-
+            
 def user_page(user, users):
     st.title("Welcome to your user page")
     options = ["Create Project", "Delete Project", "Add Member", "Remove Member", "View Tasks", "View Member Projects", "Create Task"]
@@ -344,21 +305,28 @@ def view_task_details(project, task_id, user):
         st.error("Error: Task ID not found!")
 
 def main():
-    console.print("Welcome to the User Management System", style="bold magenta")
-    while True:
-        console.print("1: Register\n2: Login\n3: Disable Account\n4: Exit", style="bold yellow")
-        choice = console.input("Choose an option: ")
-        if choice == "1":
+    st.title("Welcome to the User Management System")
+    if "logged_in" not in st.session_state:
+        st.session_state.logged_in = False
+        st.session_state.username = None
+
+    if st.session_state.logged_in:
+        users = load_users()
+        user = users[st.session_state.username]
+        user["username"] = st.session_state.username  # Adding the username to user data
+        user_page(user, users)
+    else:
+        options = ["Register", "Login", "Disable Account", "Exit"]
+        choice = st.selectbox("Choose an option", options)
+
+        if choice == "Register":
             register()
-        elif choice == "2":
+        elif choice == "Login":
             login()
-        elif choice == "3":
+        elif choice == "Disable Account":
             disable_account()
-        elif choice == "4":
-            console.print("Exiting the system. Goodbye!", style="bold cyan")
-            break
-        else:
-            console.print("Invalid option. Please try again.", style="bold red")
+        elif choice == "Exit":
+            st.write("Exiting the system. Goodbye!")
 
 if __name__ == "__main__":
     main()
