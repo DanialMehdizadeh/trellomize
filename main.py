@@ -157,89 +157,94 @@ class UserActions:
                 st.error("Error: Username does not exist!")
 
 
-def create_project(user, users):
-    st.title("Create Project")
-    
-    project_id = st.text_input("Enter project ID")
-    title = st.text_input("Enter project title")
-    description = st.text_area("Enter project description")
+class ProjectManagement:
+    def __init__(self, user, users):
+        self.user = user
+        self.users = users
 
-    if st.button("Create Project"):
-        tasks = []
-        user["projects"]["managed"].append({"id": project_id, "title": title, "description": description, "members": [], "tasks": tasks})
-        save_users(users)
-        st.success("Project created successfully!")
+    def create_project(self):
+        st.title("Create Project")
 
-def add_member(user, users):
-    st.title("Add Member to Project")
-    
-    project_id = st.text_input("Enter project ID to add member")
-    username = st.text_input("Enter username to add as a member")
+        project_id = st.text_input("Enter project ID")
+        title = st.text_input("Enter project title")
+        description = st.text_area("Enter project description")
 
-    if st.button("Add Member"):
-        if any(project["id"] == project_id for project in user["projects"]["managed"]):
-            project = next(project for project in user["projects"]["managed"] if project["id"] == project_id)
-            if username in users:
-                project["members"].append(username)
-                save_users(users)
-                st.success(f"User {username} added as a member.")
+        if st.button("Create Project"):
+            tasks = []
+            self.user["projects"]["managed"].append({"id": project_id, "title": title, "description": description, "members": [], "tasks": tasks})
+            UserDatabase.save_users(self.users)
+            st.success("Project created successfully!")
+
+    def add_member(self):
+        st.title("Add Member to Project")
+
+        project_id = st.text_input("Enter project ID to add member")
+        username = st.text_input("Enter username to add as a member")
+
+        if st.button("Add Member"):
+            if any(project["id"] == project_id for project in self.user["projects"]["managed"]):
+                project = next(project for project in self.user["projects"]["managed"] if project["id"] == project_id)
+                if username in self.users:
+                    project["members"].append(username)
+                    UserDatabase.save_users(self.users)
+                    st.success(f"User {username} added as a member.")
+                else:
+                    st.error("Error: Username does not exist!")
             else:
-                st.error("Error: Username does not exist!")
-        else:
-            st.error("Error: Project ID not found!")
+                st.error("Error: Project ID not found!")
 
-def remove_member(user, users):
-    st.title("Remove Member from Project")
-    
-    project_id = st.text_input("Enter project ID to remove member")
-    username = st.text_input("Enter username to remove from members")
+    def remove_member(self):
+        st.title("Remove Member from Project")
 
-    if st.button("Remove Member"):
-        if any(project["id"] == project_id for project in user["projects"]["managed"]):
-            project = next(project for project in user["projects"]["managed"] if project["id"] == project_id)
-            if username in project["members"]:
-                project["members"].remove(username)
-                save_users(users)
-                st.success(f"User {username} removed from members.")
+        project_id = st.text_input("Enter project ID to remove member")
+        username = st.text_input("Enter username to remove from members")
+
+        if st.button("Remove Member"):
+            if any(project["id"] == project_id for project in self.user["projects"]["managed"]):
+                project = next(project for project in self.user["projects"]["managed"] if project["id"] == project_id)
+                if username in project["members"]:
+                    project["members"].remove(username)
+                    UserDatabase.save_users(self.users)
+                    st.success(f"User {username} removed from members.")
+                else:
+                    st.error("Error: Username is not a member!")
             else:
-                st.error("Error: Username is not a member!")
-        else:
+                st.error("Error: Project ID not found!")
+
+    def delete_project(self):
+        st.title("Delete Project")
+
+        project_id = st.text_input("Enter project ID to delete")
+
+        if st.button("Delete Project"):
+            for project in self.user["projects"]["managed"]:
+                if project["id"] == project_id:
+                    self.user["projects"]["managed"].remove(project)
+                    UserDatabase.save_users(self.users)
+                    st.success("Project deleted successfully!")
+                    return
             st.error("Error: Project ID not found!")
 
-def delete_project(user, users):
-    st.title("Delete Project")
-    
-    project_id = st.text_input("Enter project ID to delete")
+    def create_task(self):
+        st.title("Create Task")
 
-    if st.button("Delete Project"):
-        for project in user["projects"]["managed"]:
-            if project["id"] == project_id:
-                user["projects"]["managed"].remove(project)
-                save_users(users)
-                st.success("Project deleted successfully!")
-                return
-        st.error("Error: Project ID not found!")
+        project_id = st.text_input("Enter project ID to add task")
+        title = st.text_input("Enter task title")
+        description = st.text_area("Enter task description")
+        priority = st.selectbox("Enter task priority", ["CRITICAL", "HIGH", "MEDIUM", "LOW"])
 
-def create_task(user, users):
-    st.title("Create Task")
-    
-    project_id = st.text_input("Enter project ID to add task")
-    title = st.text_input("Enter task title")
-    description = st.text_area("Enter task description")
-    priority = st.selectbox("Enter task priority", ["CRITICAL", "HIGH", "MEDIUM", "LOW"])
+        if st.button("Create Task"):
+            if any(project["id"] == project_id for project in self.user["projects"]["managed"]):
+                project = next(project for project in self.user["projects"]["managed"] if project["id"] == project_id)
+                priority_enum = Priority[priority]
+                assignees = project["members"]
+                task = Task(title, description, priority_enum, assignees)
+                project["tasks"].append(task.__dict__)
+                UserDatabase.save_users(self.users)
+                st.success("Task created successfully!")
+            else:
+                st.error("Error: Project ID not found!")
 
-    if st.button("Create Task"):
-        if any(project["id"] == project_id for project in user["projects"]["managed"]):
-            project = next(project for project in user["projects"]["managed"] if project["id"] == project_id)
-            priority_enum = Priority[priority]
-            assignees = project["members"]
-            task_id = str(uuid.uuid4())
-            task = {"id": task_id, "title": title, "description": description, "priority": priority_enum, "status": Status.BACKLOG, "assignees": assignees, "history": [], "comments": []}
-            project["tasks"].append(task)
-            save_users(users)
-            st.success("Task created successfully!")
-        else:
-            st.error("Error: Project ID not found!")
             
 def user_page(user, users):
     st.title("Welcome to your user page")
