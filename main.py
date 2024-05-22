@@ -1,16 +1,12 @@
+import streamlit as st
 import uuid
 import os
 import json
-import uuid
 from enum import Enum
-from getpass import getpass
-from rich.console import Console
 from datetime import datetime
 import bcrypt
 from loguru import logger
 
-
-console = Console()
 DATABASE_FILE = 'users.json'
 LOG_FILE = 'user_actions.log'
 
