@@ -246,73 +246,86 @@ class ProjectManagement:
                 st.error("Error: Project ID not found!")
 
             
-def user_page(user, users):
-    st.title("Welcome to your user page")
-    options = ["Create Project", "Delete Project", "Add Member", "Remove Member", "View Tasks", "View Member Projects", "Create Task"]
-    choice = st.selectbox("Choose an option", options)
-    
-    if choice == "Create Project":
-        create_project(user, users)
-    elif choice == "Delete Project":
-        delete_project(user, users)
-    elif choice == "Add Member":
-        add_member(user, users)
-    elif choice == "Remove Member":
-        remove_member(user, users)
-    elif choice == "View Tasks":
-        view_tasks(user)
-    elif choice == "View Member Projects":
-        view_member_projects(user, users)
-    elif choice == "Create Task":
-        create_task(user, users)
+class UserPage:
+    def __init__(self, user, users):
+        self.user = user
+        self.users = users
 
-def view_member_projects(user, users):
-    st.title("Member Projects")
-    member_projects = []
-    for username, user_data in users.items():
-        for project in user_data["projects"]["managed"]:
-            if user["username"] in project["members"]:
-                member_projects.append(project)
+    def display(self):
+        st.title("Welcome to your user page")
+        options = ["Create Project", "Delete Project", "Add Member", "Remove Member", "View Tasks", "View Member Projects", "Create Task", "Logout"]
+        choice = st.selectbox("Choose an option", options)
 
-    if member_projects:
-        for project in member_projects:
-            st.write(f"ID: {project['id']}, Title: {project['title']}, Description: {project['description']}")
-    else:
-        st.write("No member projects found.")
+        project_management = ProjectManagement(self.user, self.users)
+        if choice == "Create Project":
+            project_management.create_project()
+        elif choice == "Delete Project":
+            project_management.delete_project()
+        elif choice == "Add Member":
+            project_management.add_member()
+        elif choice == "Remove Member":
+            project_management.remove_member()
+        elif choice == "View Tasks":
+            self.view_tasks()
+        elif choice == "View Member Projects":
+            self.view_member_projects()
+        elif choice == "Create Task":
+            project_management.create_task()
+        elif choice == "Logout":
+            self.logout()    
 
-def view_tasks(user):
-    st.title("View Tasks")
-    project_id = st.text_input("Enter project ID to view tasks")
-    for project in user["projects"]["managed"]:
-        if project["id"] == project_id:
-            st.write(f"Tasks for Project: {project['title']}")
-            for task in project["tasks"]:
-                st.write(f"Task ID: {task['id']}, Title: {task['title']}, Status: {task['status'].name}, Priority: {task['priority'].name}")
-            task_id = st.text_input("Enter task ID to view details")
-            if task_id:
-                view_task_details(project, task_id, user)
-            break
-    else:
-        st.error("Error: Project ID not found!")
+    def view_member_projects(self):
+        st.title("Member Projects")
+        member_projects = []
+        for username, user_data in self.users.items():
+            for project in user_data["projects"]["managed"]:
+                if self.user["username"] in project["members"]:
+                    member_projects.append(project)
 
-def view_task_details(project, task_id, user):
-    for task in project["tasks"]:
-        if task["id"] == task_id:
-            st.write(f"Task Details:\nTitle: {task['title']}\nDescription: {task['description']}\nStatus: {task['status'].name}\nPriority: {task['priority'].name}\nAssignees: {', '.join(task['assignees'])}")
-            st.write("Comments:")
-            for comment in task["comments"]:
-                st.write(f"{comment[1]} ({comment[0]}): {comment[2]}")
-            comment = st.text_input("Enter your comment")
-            if st.button("Add Comment"):
-                user_name = user["username"]
-                task["comments"].append((datetime.now(), user_name, comment))
-                task["history"].append((datetime.now(), f"Comment added by {user_name}"))
-                save_users(load_users())  # Reload and save to ensure data consistency
-                st.success("Comment added successfully!")
-            break
-    else:
-        st.error("Error: Task ID not found!")
+        if member_projects:
+            for project in member_projects:
+                st.write(f"ID: {project['id']}, Title: {project['title']}, Description: {project['description']}")
+        else:
+            st.write("No member projects found.")
 
+    def view_tasks(self):
+        st.title("View Tasks")
+        project_id = st.text_input("Enter project ID to view tasks")
+        for project in self.user["projects"]["managed"]:
+            if project["id"] == project_id:
+                st.write(f"Tasks for Project: {project['title']}")
+                for task in project["tasks"]:
+                    st.write(f"Task ID: {task['id']}, Title: {task['title']}, Status: {task['status'].name}, Priority: {task['priority'].name}")
+                task_id = st.text_input("Enter task ID to view details")
+                if task_id:
+                    self.view_task_details(project, task_id)
+                break
+        else:
+            st.error("Error: Project ID not found!")
+
+    def view_task_details(self, project, task_id):
+        for task in project["tasks"]:
+            if task["id"] == task_id:
+                st.write(f"Task Details:\nTitle: {task['title']}\nDescription: {task['description']}\nStatus: {task['status'].name}\nPriority: {task['priority'].name}\nAssignees: {', '.join(task['assignees'])}")
+                st.write("Comments:")
+                for comment in task["comments"]:
+                    st.write(f"{comment[1]} ({comment[0]}): {comment[2]}")
+                comment = st.text_input("Enter your comment")
+                if st.button("Add Comment"):
+                    user_name = self.user["username"]
+                    task["comments"].append((datetime.now(), user_name, comment))
+                    task["history"].append((datetime.now(), f"Comment added by {user_name}"))
+                    UserDatabase.save_users(UserDatabase.load_users())  # Reload and save to ensure data consistency
+                    st.success("Comment added successfully!")
+                break
+        else:
+            st.error("Error: Task ID not found!")
+
+    def logout(self):
+        st.session_state.logged_in = False
+        st.session_state.username = None
+        st.success("Logged out successfully!")
+        st.experimental_rerun()        
 def main():
     st.title("Welcome to the User Management System")
     if "logged_in" not in st.session_state:
