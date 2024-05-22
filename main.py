@@ -275,90 +275,73 @@ def create_task(user, users):
             st.success("Task created successfully!")
         else:
             st.error("Error: Project ID not found!")
+
 def user_page(user, users):
-    console.print("Welcome to your user page", style="bold magenta")
-    while True:
-        console.print("1: Create Project\n2: Add Member to Project\n3: Remove Member from Project\n4: Create Task\n5: View Managed Projects\n6: View Member Projects\n7: Delete Project\n8: View Tasks\n9: Logout", style="bold yellow")
-        choice = console.input("Choose an option: ")
-        if choice == "1":
-            create_project(user, users)
-        elif choice == "2":
-            add_member(user, users)
-        elif choice == "3":
-            remove_member(user, users)
-        elif choice == "4":
-            create_task(user, users)
-        elif choice == "5":
-            view_managed_projects(user)
-        elif choice == "6":
-            view_member_projects(user)
-        elif choice == "7":
-            delete_project(user)
-        elif choice == "8":
-            view_tasks(user)
-        elif choice == "9":
-            console.print("Logging out. Goodbye!", style="bold cyan")
-            break
-        else:
-            console.print("Invalid option. Please try again.", style="bold red")
+    st.title("Welcome to your user page")
+    options = ["Create Project", "Delete Project", "Add Member", "Remove Member", "View Tasks", "View Member Projects", "Create Task"]
+    choice = st.selectbox("Choose an option", options)
+    
+    if choice == "Create Project":
+        create_project(user, users)
+    elif choice == "Delete Project":
+        delete_project(user, users)
+    elif choice == "Add Member":
+        add_member(user, users)
+    elif choice == "Remove Member":
+        remove_member(user, users)
+    elif choice == "View Tasks":
+        view_tasks(user)
+    elif choice == "View Member Projects":
+        view_member_projects(user, users)
+    elif choice == "Create Task":
+        create_task(user, users)
 
-def view_managed_projects(user):
-    console.print("Managed Projects:", style="bold cyan")
-    for project in user["projects"]["managed"]:
-        console.print(f"ID: {project['id']}, Title: {project['title']}, Description: {project['description']}", style="bold blue")
-    console.print()
+def view_member_projects(user, users):
+    st.title("Member Projects")
+    member_projects = []
+    for username, user_data in users.items():
+        for project in user_data["projects"]["managed"]:
+            if user["username"] in project["members"]:
+                member_projects.append(project)
 
-def view_member_projects(user):
-    console.print("Member Projects:", style="bold cyan")
-    for project in user["projects"]["member"]:
-        console.print(f"ID: {project['id']}, Title: {project['title']}, Description: {project['description']}", style="bold blue")
-    console.print()
+    if member_projects:
+        for project in member_projects:
+            st.write(f"ID: {project['id']}, Title: {project['title']}, Description: {project['description']}")
+    else:
+        st.write("No member projects found.")
 
 def view_tasks(user):
-    project_id = console.input("Enter project ID to view tasks: ")
+    st.title("View Tasks")
+    project_id = st.text_input("Enter project ID to view tasks")
     for project in user["projects"]["managed"]:
         if project["id"] == project_id:
-            console.print("Tasks for Project:", project["title"], style="bold cyan")
+            st.write(f"Tasks for Project: {project['title']}")
             for task in project["tasks"]:
-                console.print(f"Task ID: {task['id']}, Title: {task['title']}, Status: {Status(task['status']).name}, Priority: {Priority(task['priority']).name}", style="bold blue")
-            console.print()
-            task_id = console.input("Enter task ID to view details (or 'back' to return): ")
-            if task_id == "back":
-                return
-            else:
-                view_task_details(project, task_id)
+                st.write(f"Task ID: {task['id']}, Title: {task['title']}, Status: {task['status'].name}, Priority: {task['priority'].name}")
+            task_id = st.text_input("Enter task ID to view details")
+            if task_id:
+                view_task_details(project, task_id, user)
             break
     else:
-        console.print("Error: Project ID not found!", style="bold red")
+        st.error("Error: Project ID not found!")
 
-def view_task_details(project, task_id):
+def view_task_details(project, task_id, user):
     for task in project["tasks"]:
         if task["id"] == task_id:
-            console.print("Task Details:", style="bold cyan")
-            console.print(f"Title: {task['title']}", style="bold blue")
-            console.print(f"Description: {task['description']}", style="bold blue")
-            console.print(f"Status: {Status(task['status']).name}", style="bold blue")
-            console.print(f"Priority: {Priority(task['priority']).name}", style="bold blue")
-            console.print(f"Assignees: {', '.join(task['assignees'])}", style="bold blue")
-            console.print("Comments:", style="bold cyan")
+            st.write(f"Task Details:\nTitle: {task['title']}\nDescription: {task['description']}\nStatus: {task['status'].name}\nPriority: {task['priority'].name}\nAssignees: {', '.join(task['assignees'])}")
+            st.write("Comments:")
             for comment in task["comments"]:
-                console.print(f"{comment[1]} ({comment[0]}): {comment[2]}", style="bold blue")
-            console.print()
-            action = console.input("Do you want to (c)omment or (b)ack? ").lower()
-            if action == "c":
-                comment = console.input("Enter your comment: ")
-                user_name = project["members"][0]  # For demonstration purpose, assume first member's name
+                st.write(f"{comment[1]} ({comment[0]}): {comment[2]}")
+            comment = st.text_input("Enter your comment")
+            if st.button("Add Comment"):
+                user_name = user["username"]
                 task["comments"].append((datetime.now(), user_name, comment))
                 task["history"].append((datetime.now(), f"Comment added by {user_name}"))
-                save_users(users)
-                console.print("Comment added successfully!", style="bold green")
-            elif action == "b":
-                return
-            else:
-                console.print("Invalid option!", style="bold red")
+                save_users(load_users())  # Reload and save to ensure data consistency
+                st.success("Comment added successfully!")
             break
     else:
-        console.print("Error: Task ID not found!", style="bold red")
+        st.error("Error: Task ID not found!")
 
 def main():
     console.print("Welcome to the User Management System", style="bold magenta")
