@@ -101,64 +101,121 @@ class UserDatabase:
         with open(DATABASE_FILE, 'w') as file:
             json.dump(users, file, indent=4, default=serialize)
 
+# Utility function to send verification email
+def send_verification_email(email, otp):
+    email_sender = 'trellomize@gmail.com'
+    email_password = 'hxwr ctlg issq vbwl'  # Use a more secure method to handle credentials
+    email_receiver = email
+
+    subject = 'Your Verification Code'
+    body = f"""
+    Hi,
+
+    Your verification code is: {otp}
+
+    Please enter this code to complete your registration.
+
+    Thanks,
+    Danial and Alireza from Trellomize
+    """
+
+    em = EmailMessage()
+    em['From'] = email_sender
+    em['To'] = email_receiver
+    em['Subject'] = subject
+    em.set_content(body)
+
+    context = ssl.create_default_context()
+
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465, context=context) as smtp:
+        smtp.login(email_sender, email_password)
+        smtp.sendmail(email_sender, email_receiver, em.as_string())
+
+# Function to generate a 6-digit OTP
+def generate_otp():
+    return str(random.randint(100000, 999999))
+
 class UserActions:
     @staticmethod
     def register():
         users = UserDatabase.load_users()
-        st.title("Register a new user")
+        st.sidebar.title("Register a new user")
 
-        email = st.text_input("Email")
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
+        email = st.sidebar.text_input("Email")
+        username = st.sidebar.text_input("Username")
+        password = st.sidebar.text_input("Password", type="password")
 
-        if st.button("Register"):
+        if st.sidebar.button("Send Verification Code"):
             if email in [user['email'] for user in users.values()] or username in users:
-                st.error("Error: Email or Username already exists!")
+                st.sidebar.error("Error: Email or Username already exists!")
                 return
 
-            hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
-            users[username] = {"email": email, "password": hashed_password.decode(), "active": True, "projects": {"managed": [], "member": []}}
-            UserDatabase.save_users(users)
-            st.success("User registered successfully!")
+            otp = generate_otp()
+            send_verification_email(email, otp)
+
+            st.session_state.verifying = True
+            st.session_state.email = email
+            st.session_state.username = username
+            st.session_state.password = password
+            st.session_state.otp = otp
+            st.sidebar.success("Verification code sent! Please check your email.")
+
+        if st.session_state.get("verifying", False):
+            verification_code = st.sidebar.text_input("Enter the verification code sent to your email")
+            if st.sidebar.button("Verify and Register"):
+                if verification_code == st.session_state.otp:
+                    hashed_password = bcrypt.hashpw(st.session_state.password.encode('utf-8'), bcrypt.gensalt())
+                    users[st.session_state.username] = {
+                        "email": st.session_state.email,
+                        "password": hashed_password.decode(),
+                        "active": True,
+                        "projects": {"managed": [], "member": []}
+                    }
+                    UserDatabase.save_users(users)
+                    st.sidebar.success("User registered successfully!")
+                    st.session_state.verifying = False
+                else:
+                    st.sidebar.error("Invalid verification code!")
 
     @staticmethod
     def login():
         users = UserDatabase.load_users()
-        st.title("Login to your account")
+        st.sidebar.title("Login to your account")
 
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
+        username = st.sidebar.text_input("Username")
+        password = st.sidebar.text_input("Password", type="password")
 
-        if st.button("Login"):
+        if st.sidebar.button("Login"):
             if username not in users:
-                st.error("Error: Username does not exist!")
+                st.sidebar.error("Error: Username does not exist!")
                 return
 
             if not users[username]["active"]:
-                st.error("Error: This account is disabled.")
+                st.sidebar.error("Error: This account is disabled.")
                 return
 
             if bcrypt.checkpw(password.encode('utf-8'), users[username]["password"].encode()):
                 st.session_state.logged_in = True
                 st.session_state.username = username
-                st.success("Logged in successfully!")
+                st.sidebar.success("Logged in successfully!")
+                st.experimental_rerun()  # Rerun the script to update the session state immediately
             else:
-                st.error("Error: Incorrect password!")
+                st.sidebar.error("Error: Incorrect password!")
 
     @staticmethod
     def disable_account():
         users = UserDatabase.load_users()
-        st.title("Disable a user account")
+        st.sidebar.title("Disable a user account")
 
-        username = st.text_input("Enter the username to disable")
+        username = st.sidebar.text_input("Enter the username to disable")
 
-        if st.button("Disable Account"):
+        if st.sidebar.button("Disable Account"):
             if username in users:
                 users[username]["active"] = False
                 UserDatabase.save_users(users)
-                st.success(f"Account for {username} has been disabled.")
+                st.sidebar.success(f"Account for {username} has been disabled.")
             else:
-                st.error("Error: Username does not exist!")
+                st.sidebar.error("Error: Username does not exist!")
 
 class ProjectManagement:
     def __init__(self, user, users):
