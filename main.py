@@ -6,6 +6,10 @@ from enum import Enum
 from datetime import datetime
 import bcrypt
 from loguru import logger
+import smtplib
+import ssl
+import random
+from email.message import EmailMessage
 
 DATABASE_FILE = 'users.json'
 LOG_FILE = 'user_actions.log'
