@@ -135,6 +135,29 @@ def send_verification_email(email, otp):
 def generate_otp():
     return str(random.randint(100000, 999999))
 
+# Inject custom CSS for a modern look
+st.markdown("""
+    <style>
+    body {
+        background-color: #F0F2F6;
+        color: #000000;
+        font-family: "sans-serif";
+    }
+    .stButton button {
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        padding: 10px 20px;
+    }
+    .stTextInput > div > div > input {
+        border: 2px solid #4CAF50;
+        border-radius: 5px;
+        padding: 10px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
 class UserActions:
     @staticmethod
     def register():
@@ -310,11 +333,7 @@ class UserPage:
         self.user = user
         self.users = users
 
-    def display(self):
-        st.title("Welcome to your user page")
-        options = ["Create Project", "Delete Project", "Add Member", "Remove Member", "View Tasks", "View Member Projects", "Create Task", "Logout"]
-        choice = st.selectbox("Choose an option", options)
-
+    def handle_choice(self, choice):
         project_management = ProjectManagement(self.user, self.users)
         if choice == "Create Project":
             project_management.create_project()
@@ -331,7 +350,11 @@ class UserPage:
         elif choice == "Create Task":
             project_management.create_task()
         elif choice == "Logout":
-            self.logout()    
+            self.logout()
+
+    def display(self):
+        st.title("Welcome to your user page")
+        self.handle_choice(st.selectbox("Choose an option", ["Create Project", "Delete Project", "Add Member", "Remove Member", "View Tasks", "View Member Projects", "Create Task", "Logout"]))
 
     def view_member_projects(self):
         st.title("Member Projects")
@@ -350,17 +373,18 @@ class UserPage:
     def view_tasks(self):
         st.title("View Tasks")
         project_id = st.text_input("Enter project ID to view tasks")
-        for project in self.user["projects"]["managed"]:
-            if project["id"] == project_id:
-                st.write(f"Tasks for Project: {project['title']}")
-                for task in project["tasks"]:
-                    st.write(f"Task ID: {task['id']}, Title: {task['title']}, Status: {task['status'].name}, Priority: {task['priority'].name}")
-                task_id = st.text_input("Enter task ID to view details")
-                if task_id:
-                    self.view_task_details(project, task_id)
-                break
-        else:
-            st.error("Error: Project ID not found!")
+        if st.button("Add Member"):
+            for project in self.user["projects"]["managed"]:
+                if project["id"] == project_id:
+                    st.write(f"Tasks for Project: {project['title']}")
+                    for task in project["tasks"]:
+                        st.write(f"Task ID: {task['id']}, Title: {task['title']}, Status: {task['status'].name}, Priority: {task['priority'].name}")
+                    task_id = st.text_input("Enter task ID to view details")
+                    if task_id:
+                        self.view_task_details(project, task_id)
+                    break
+            else:
+                st.error("Error: Project ID not found!")
 
     def view_task_details(self, project, task_id):
         for task in project["tasks"]:
@@ -387,7 +411,7 @@ class UserPage:
         st.experimental_rerun()        
 
 def main():
-    st.title("Trello Maze")
+    st.sidebar.title("Trello Maze")
     if "logged_in" not in st.session_state:
         st.session_state.logged_in = False
         st.session_state.username = None
@@ -397,10 +421,14 @@ def main():
         user = users[st.session_state.username]
         user["username"] = st.session_state.username  # Adding the username to user data
         user_page = UserPage(user, users)
-        user_page.display()
+
+        options = ["Create Project", "Delete Project", "Add Member", "Remove Member", "View Tasks", "View Member Projects", "Create Task", "Logout"]
+        choice = st.sidebar.selectbox("User Actions", options)
+        if choice:
+            user_page.handle_choice(choice)
     else:
         options = ["Register", "Login", "Disable Account", "Exit"]
-        choice = st.selectbox("Choose an option", options)
+        choice = st.sidebar.selectbox("Choose an option", options)
 
         if choice == "Register":
             UserActions.register()
