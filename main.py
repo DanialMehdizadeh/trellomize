@@ -62,6 +62,20 @@ class Task:
         self.comments.append((timestamp, user, comment))
         self.history.append((timestamp, f"Comment added by {user}"))
 
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "description": self.description,
+            "start_time": self.start_time.isoformat(),
+            "end_time": self.end_time.isoformat(),
+            "assignees": self.assignees,
+            "priority": self.priority.name,
+            "status": self.status.name,
+            "history": [(time.isoformat(), change) for time, change in self.history],
+            "comments": [(time.isoformat(), user, comment) for time, user, comment in self.comments]
+        }
+
     def __repr__(self):
         return f"Task ID: {self.id}, Title: {self.title}, Status: {self.status.name}"
 
@@ -72,7 +86,7 @@ class UserDatabase:
             with open(DATABASE_FILE, 'r') as file:
                 data = file.read()
                 if not data:
-                    return {}  
+                    return {}
                 users = json.loads(data)
                 # Convert status and priority fields to Enums
                 for user in users.values():
@@ -80,10 +94,14 @@ class UserDatabase:
                         for task in project.get('tasks', []):
                             task['status'] = Status[task['status']]
                             task['priority'] = Priority[task['priority']]
+                            task['start_time'] = datetime.fromisoformat(task['start_time'])
+                            task['end_time'] = datetime.fromisoformat(task['end_time'])
+                            task['history'] = [(datetime.fromisoformat(time), change) for time, change in task['history']]
+                            task['comments'] = [(datetime.fromisoformat(time), user, comment) for time, user, comment in task['comments']]
                 return users
         except FileNotFoundError:
             logger.error("Database file not found!")
-            return {} 
+            return {}
         except json.decoder.JSONDecodeError:
             logger.error("Invalid JSON format in database file!")
             return {}
@@ -96,6 +114,8 @@ class UserDatabase:
         def serialize(obj):
             if isinstance(obj, (Status, Priority)):
                 return obj.name
+            if isinstance(obj, datetime):
+                return obj.isoformat()
             raise TypeError("Type not serializable")
 
         with open(DATABASE_FILE, 'w') as file:
@@ -236,7 +256,7 @@ class UserActions:
             if username in users:
                 users[username]["active"] = False
                 UserDatabase.save_users(users)
-                st.sidebar.success(f"Account for {username} has been disabled.")
+                st.sidebar.success(f"Account {username} has been disabled successfully!")
             else:
                 st.sidebar.error("Error: Username does not exist!")
 
@@ -314,7 +334,7 @@ class ProjectManagement:
         project_id = st.text_input("Enter project ID to add task")
         title = st.text_input("Enter task title")
         description = st.text_area("Enter task description")
-        priority = st.selectbox("Enter task priority", ["CRITICAL", "HIGH", "MEDIUM", "LOW"])
+        priority = st.selectbox("Enter task priority", [priority.name for priority in Priority])
 
         if st.button("Create Task"):
             if any(project["id"] == project_id for project in self.user["projects"]["managed"]):
@@ -322,7 +342,7 @@ class ProjectManagement:
                 priority_enum = Priority[priority]
                 assignees = project["members"]
                 task = Task(title, description, priority_enum, assignees)
-                project["tasks"].append(task.__dict__)
+                project["tasks"].append(task.to_dict())
                 UserDatabase.save_users(self.users)
                 st.success("Task created successfully!")
             else:
@@ -359,7 +379,7 @@ class UserPage:
     def view_member_projects(self):
         st.title("Member Projects")
         member_projects = []
-        for username, user_data in self.users.items():
+        for user_data in self.users.values():
             for project in user_data["projects"]["managed"]:
                 if self.user["username"] in project["members"]:
                     member_projects.append(project)
@@ -373,12 +393,12 @@ class UserPage:
     def view_tasks(self):
         st.title("View Tasks")
         project_id = st.text_input("Enter project ID to view tasks")
-        if st.button("Add Member"):
+        if st.button("View Tasks"):
             for project in self.user["projects"]["managed"]:
                 if project["id"] == project_id:
                     st.write(f"Tasks for Project: {project['title']}")
                     for task in project["tasks"]:
-                        st.write(f"Task ID: {task['id']}, Title: {task['title']}, Status: {task['status'].name}, Priority: {task['priority'].name}")
+                        st.write(f"Task ID: {task['id']}, Title: {task['title']}, Status: {task['status']}, Priority: {task['priority']}")
                     task_id = st.text_input("Enter task ID to view details")
                     if task_id:
                         self.view_task_details(project, task_id)
@@ -389,7 +409,7 @@ class UserPage:
     def view_task_details(self, project, task_id):
         for task in project["tasks"]:
             if task["id"] == task_id:
-                st.write(f"Task Details:\nTitle: {task['title']}\nDescription: {task['description']}\nStatus: {task['status'].name}\nPriority: {task['priority'].name}\nAssignees: {', '.join(task['assignees'])}")
+                st.write(f"Task Details:\nTitle: {task['title']}\nDescription: {task['description']}\nStatus: {task['status']}\nPriority: {task['priority']}\nAssignees: {', '.join(task['assignees'])}")
                 st.write("Comments:")
                 for comment in task["comments"]:
                     st.write(f"{comment[1]} ({comment[0]}): {comment[2]}")
@@ -408,7 +428,7 @@ class UserPage:
         st.session_state.logged_in = False
         st.session_state.username = None
         st.success("Logged out successfully!")
-        st.experimental_rerun()        
+        st.experimental_rerun()
 
 def main():
     st.sidebar.title("Trello Maze")
