@@ -4,6 +4,7 @@ import os
 import json
 from enum import Enum
 from datetime import datetime
+from typing import Dict, Optional, List, Tuple, Union
 import bcrypt
 from loguru import logger
 import smtplib
@@ -35,34 +36,33 @@ class Status(Enum):
 
     def toJSON(self):
         return self.name
-
 class Task:
-    def __init__(self, title, description, assignees):
-        self.id = str(uuid.uuid4())
-        self.title = title
-        self.description = description
-        self.start_time = datetime.now()
-        self.end_time = self.start_time.replace(hour=0, minute=0, second=0, microsecond=0)  # Default end time
-        self.assignees = assignees
-        self.priority = Priority.LOW  # Default priority
-        self.status = Status.BACKLOG  # Default status
-        self.history = []  # List to store history of changes
-        self.comments = []  # List to store comments   
+    def __init__(self, title: str, description: str, assignees: List[str]):
+        self.id: str = str(uuid.uuid4())
+        self.title: str = title
+        self.description: str = description
+        self.start_time: datetime = datetime.now()
+        self.end_time: datetime = self.start_time.replace(hour=0, minute=0, second=0, microsecond=0)  # Default end time
+        self.assignees: List[str] = assignees
+        self.priority: Priority = Priority.LOW  # Default priority
+        self.status: Status = Status.BACKLOG  # Default status
+        self.history: List[Tuple[datetime, str]] = []  # List to store history of changes
+        self.comments: List[Tuple[datetime, str, str]] = []  # List to store comments   
 
-    def change_status(self, new_status):
+    def change_status(self, new_status: Status) -> None:
         self.status = new_status
         self.history.append((datetime.now(), f"Status changed to {new_status.name}"))
 
-    def change_priority(self, new_priority):
+    def change_priority(self, new_priority: Priority) -> None:
         self.priority = new_priority
         self.history.append((datetime.now(), f"Priority changed to {new_priority.name}"))
 
-    def add_comment(self, user, comment):
-        timestamp = datetime.now()
+    def add_comment(self, user: str, comment: str) -> None:
+        timestamp: datetime = datetime.now()
         self.comments.append((timestamp, user, comment))
         self.history.append((timestamp, f"Comment added by {user}"))
 
-    def to_dict(self):
+    def to_dict(self) -> Dict[str, Union[str, List[str], List[Tuple[str, str]], List[Tuple[str, str, str]]]]:
         return {
             "id": self.id,
             "title": self.title,
@@ -70,14 +70,15 @@ class Task:
             "start_time": self.start_time.isoformat(),
             "end_time": self.end_time.isoformat(),
             "assignees": self.assignees,
-            "priority": self.priority.name,
+            "priority": self.priority.name,  # Convert to string
             "status": self.status.name,
             "history": [(time.isoformat(), change) for time, change in self.history],
             "comments": [(time.isoformat(), user, comment) for time, user, comment in self.comments]
         }
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Task ID: {self.id}, Title: {self.title}, Status: {self.status.name}"
+
 
 class UserDatabase:
     @staticmethod
@@ -93,7 +94,7 @@ class UserDatabase:
                     for project in user.get('projects', {}).get('managed', []):
                         for task in project.get('tasks', []):
                             task['status'] = Status[task['status']]
-                            task['priority'] = Priority[task['priority']]
+                            task['priority'] = task['priority']  # Ensure priority is string
                             task['start_time'] = datetime.fromisoformat(task['start_time'])
                             task['end_time'] = datetime.fromisoformat(task['end_time'])
                             task['history'] = [(datetime.fromisoformat(time), change) for time, change in task['history']]
@@ -120,6 +121,7 @@ class UserDatabase:
 
         with open(DATABASE_FILE, 'w') as file:
             json.dump(users, file, indent=4, default=serialize)
+
 
 # Utility function to send verification email
 def send_verification_email(email, otp):
@@ -334,21 +336,21 @@ class ProjectManagement:
                     return
             st.error("Error: Project ID not found!")
 
-    def create_task(self) -> None:
+    def create_task(self):
         st.title("Create Task")
-    
+
         project_id = st.text_input("Enter project ID to add task")
         title = st.text_input("Enter task title")
         description = st.text_area("Enter task description")
         priority = st.selectbox("Enter task priority", [priority.name for priority in Priority])
-    
+
         # Create a list of available users for assignment
         available_users = list(self.users.keys())
         assignees = st.multiselect("Select assignees", available_users)
-    
+
         if st.button("Create Task"):
             if any(project["id"] == project_id for project in self.user["projects"]["managed"]):
-                project: Dict = next(project for project in self.user["projects"]["managed"] if project["id"] == project_id)
+                project = next(project for project in self.user["projects"]["managed"] if project["id"] == project_id)
                 priority_enum = Priority[priority]
                 task = Task(title, description, assignees)
                 task.priority = priority_enum
@@ -359,12 +361,48 @@ class ProjectManagement:
             else:
                 st.error("Error: Project ID not found!")
 
+    def edit_task(self):
+        st.title("Edit Task")
+
+        project_id = st.text_input("Enter project ID")
+        task_id = st.text_input("Enter task ID to edit")
+
+        if st.button("Load Task"):
+            for project in self.user["projects"]["managed"]:
+                if project["id"] == project_id:
+                    task = next((task for task in project["tasks"] if task["id"] == task_id), None)
+                    if task:
+                        self.show_edit_task_form(project, task)
+                    else:
+                        st.error("Error: Task ID not found!")
+                    break
+            else:
+                st.error("Error: Project ID not found!")
+
+    def show_edit_task_form(self, project, task):
+        st.write(f"Editing Task: {task['title']}")
+
+        title = st.text_input("Task title", value=task['title'])
+        description = st.text_area("Task description", value=task['description'])
+        priority = st.selectbox("Task priority", [priority.name for priority in Priority], index=Priority[task['priority']].value - 1)
+        available_users = list(self.users.keys())
+        assignees = st.multiselect("Select assignees", available_users, default=task['assignees'])
+
+        if st.button("Update Task"):
+            task['title'] = title
+            task['description'] = description
+            task['priority'] = priority
+            task['assignees'] = assignees
+            UserDatabase.save_users(self.users)
+            st.success("Task updated successfully!")
+            logger.info(f"Task '{title}' updated successfully!")
+
 class UserPage:
     def __init__(self, user, users):
         self.user = user
         self.users = users
 
-    def handle_choice(self, choice: str) -> None:
+    def handle_choice(self, choice):
         project_management = ProjectManagement(self.user, self.users)
         if choice == "Create Project":
             project_management.create_project()
@@ -384,21 +422,21 @@ class UserPage:
             project_management.create_task()
         elif choice == "Logout":
             self.logout()
-    
-    def display(self) -> None:
+
+    def display(self):
         st.title("Welcome to your user page")
         self.handle_choice(st.selectbox("Choose an option", ["Create Project", "Delete Project", "Add Member", "Remove Member", "View Tasks", "View Member Projects", "View Managed Projects", "Create Task", "Logout"]))
-    
-    def view_tasks(self) -> None:
+
+    def view_tasks(self):
         st.title("View Tasks")
         project_id = st.text_input("Enter project ID to view tasks", key="project_id_input")
-    
+
         if "project_id" not in st.session_state:
             st.session_state.project_id = ""
-    
+
         if st.button("View Tasks"):
             st.session_state.project_id = project_id
-    
+
         if st.session_state.project_id:
             project_id = st.session_state.project_id
             for project in self.user["projects"]["managed"]:
@@ -406,29 +444,31 @@ class UserPage:
                     st.write(f"Tasks for Project: {project['title']}")
                     for task in project["tasks"]:
                         st.write(f"Task ID: {task['id']}, Title: {task['title']}, Status: {task['status']}, Priority: {task['priority']}")
-                    task_id = st.text_input("Enter task ID to view details", key="task_id_input")
-    
-                    if "task_id" not in st.session_state:
-                        st.session_state.task_id = ""
-    
-                    if st.button("View Task Details"):
-                        st.session_state.task_id = task_id
-    
-                    if st.session_state.task_id:
-                        task_id = st.session_state.task_id
-                        self.view_task_details(project, task_id)
+                        if st.button(f"View Details", key=f"view_{task['id']}"):
+                            st.session_state.task_id = task['id']
+                            st.session_state.viewing_task = True
+                            st.session_state.editing_task = False
+                        if st.button(f"Edit Task", key=f"edit_{task['id']}"):
+                            st.session_state.task_id = task['id']
+                            st.session_state.editing_task = True
+                            st.session_state.viewing_task = False
+                    if st.session_state.get("viewing_task"):
+                        self.view_task_details(project, st.session_state.task_id)
+                    if st.session_state.get("editing_task"):
+                        task = next((task for task in project["tasks"] if task["id"] == st.session_state.task_id), None)
+                        self.edit_task(project, task)
                     break
             else:
                 st.error("Error: Project ID not found!")
-    
-    def view_task_details(self, project: Dict, task_id: str) -> None:
+
+    def view_task_details(self, project, task_id):
         task = next((task for task in project["tasks"] if task["id"] == task_id), None)
         if task:
             st.write(f"Task Details:\nTitle: {task['title']}\nDescription: {task['description']}\nStatus: {task['status']}\nPriority: {task['priority']}\nAssignees: {', '.join(task['assignees'])}")
             st.write("Comments:")
             for comment in task["comments"]:
                 st.write(f"{comment[1]} ({comment[0]}): {comment[2]}")
-    
+
             comment_key = f"new_comment_{task_id}_{len(task['comments'])}"  # Ensure unique key
             comment = st.text_input("Enter your comment", key=comment_key)
             if st.button("Add Comment"):
@@ -441,6 +481,26 @@ class UserPage:
                 st.experimental_rerun()
         else:
             st.error("Error: Task ID not found!")
+
+    def edit_task(self, project: dict, task: dict) -> None:
+        st.write(f"Editing Task: {task['title']}")
+
+        title = st.text_input("Task title", value=task['title'])
+        description = st.text_area("Task description", value=task['description'])
+        priority_names = [priority.name for priority in Priority]
+        priority_index = priority_names.index(task['priority'])  # Ensure we handle priority as a string
+        priority = st.selectbox("Task priority", priority_names, index=priority_index)
+        available_users = list(self.users.keys())
+        assignees = st.multiselect("Select assignees", available_users, default=task['assignees'])
+
+        if st.button("Update Task"):
+            task['title'] = title
+            task['description'] = description
+            task['priority'] = priority
+            task['assignees'] = assignees
+            UserDatabase.save_users(self.users)
+            st.success("Task updated successfully!")
+            logger.info(f"Task '{title}' updated successfully!")
 
     def view_member_projects(self):
         st.title("Member Projects")
@@ -541,7 +601,10 @@ class UserPage:
         st.success("Logged out successfully!")
         st.experimental_rerun()
 
-def main() -> None:
+# Main application remains unchanged
+
+
+def main():
     st.sidebar.title("Trellomize")
     if "logged_in" not in st.session_state:
         st.session_state.logged_in = False
@@ -554,12 +617,12 @@ def main() -> None:
         user_page = UserPage(user, users)
 
         options = ["Create Project", "Delete Project", "Add Member", "Remove Member", "View Tasks", "View Member Projects", "View Managed Projects", "Create Task", "Logout"]
-        choice: Optional[str] = st.sidebar.selectbox("User Actions", options)
+        choice = st.sidebar.selectbox("User Actions", options)
         if choice:
             user_page.handle_choice(choice)
     else:
         options = ["Register", "Login", "Disable Account", "Exit"]
-        choice: Optional[str] = st.sidebar.selectbox("Choose an option", options)
+        choice = st.sidebar.selectbox("Choose an option", options)
 
         if choice == "Register":
             UserActions.register()
