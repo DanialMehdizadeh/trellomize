@@ -334,21 +334,21 @@ class ProjectManagement:
                     return
             st.error("Error: Project ID not found!")
 
-    def create_task(self):
+    def create_task(self) -> None:
         st.title("Create Task")
-
+    
         project_id = st.text_input("Enter project ID to add task")
         title = st.text_input("Enter task title")
         description = st.text_area("Enter task description")
         priority = st.selectbox("Enter task priority", [priority.name for priority in Priority])
-
+    
         # Create a list of available users for assignment
         available_users = list(self.users.keys())
         assignees = st.multiselect("Select assignees", available_users)
-
+    
         if st.button("Create Task"):
             if any(project["id"] == project_id for project in self.user["projects"]["managed"]):
-                project = next(project for project in self.user["projects"]["managed"] if project["id"] == project_id)
+                project: Dict = next(project for project in self.user["projects"]["managed"] if project["id"] == project_id)
                 priority_enum = Priority[priority]
                 task = Task(title, description, assignees)
                 task.priority = priority_enum
