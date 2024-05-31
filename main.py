@@ -541,7 +541,7 @@ class UserPage:
         st.success("Logged out successfully!")
         st.experimental_rerun()
 
-def main():
+def main() -> None:
     st.sidebar.title("Trellomize")
     if "logged_in" not in st.session_state:
         st.session_state.logged_in = False
@@ -554,12 +554,12 @@ def main():
         user_page = UserPage(user, users)
 
         options = ["Create Project", "Delete Project", "Add Member", "Remove Member", "View Tasks", "View Member Projects", "View Managed Projects", "Create Task", "Logout"]
-        choice = st.sidebar.selectbox("User Actions", options)
+        choice: Optional[str] = st.sidebar.selectbox("User Actions", options)
         if choice:
             user_page.handle_choice(choice)
     else:
         options = ["Register", "Login", "Disable Account", "Exit"]
-        choice = st.sidebar.selectbox("Choose an option", options)
+        choice: Optional[str] = st.sidebar.selectbox("Choose an option", options)
 
         if choice == "Register":
             UserActions.register()
