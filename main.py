@@ -364,7 +364,7 @@ class UserPage:
         self.user = user
         self.users = users
 
-    def handle_choice(self, choice):
+    def handle_choice(self, choice: str) -> None:
         project_management = ProjectManagement(self.user, self.users)
         if choice == "Create Project":
             project_management.create_project()
@@ -384,21 +384,21 @@ class UserPage:
             project_management.create_task()
         elif choice == "Logout":
             self.logout()
-
-    def display(self):
+    
+    def display(self) -> None:
         st.title("Welcome to your user page")
         self.handle_choice(st.selectbox("Choose an option", ["Create Project", "Delete Project", "Add Member", "Remove Member", "View Tasks", "View Member Projects", "View Managed Projects", "Create Task", "Logout"]))
-
-    def view_tasks(self):
+    
+    def view_tasks(self) -> None:
         st.title("View Tasks")
         project_id = st.text_input("Enter project ID to view tasks", key="project_id_input")
-
+    
         if "project_id" not in st.session_state:
             st.session_state.project_id = ""
-
+    
         if st.button("View Tasks"):
             st.session_state.project_id = project_id
-
+    
         if st.session_state.project_id:
             project_id = st.session_state.project_id
             for project in self.user["projects"]["managed"]:
@@ -407,28 +407,28 @@ class UserPage:
                     for task in project["tasks"]:
                         st.write(f"Task ID: {task['id']}, Title: {task['title']}, Status: {task['status']}, Priority: {task['priority']}")
                     task_id = st.text_input("Enter task ID to view details", key="task_id_input")
-
+    
                     if "task_id" not in st.session_state:
                         st.session_state.task_id = ""
-
+    
                     if st.button("View Task Details"):
                         st.session_state.task_id = task_id
-
+    
                     if st.session_state.task_id:
                         task_id = st.session_state.task_id
                         self.view_task_details(project, task_id)
                     break
             else:
                 st.error("Error: Project ID not found!")
-
-    def view_task_details(self, project, task_id):
+    
+    def view_task_details(self, project: Dict, task_id: str) -> None:
         task = next((task for task in project["tasks"] if task["id"] == task_id), None)
         if task:
             st.write(f"Task Details:\nTitle: {task['title']}\nDescription: {task['description']}\nStatus: {task['status']}\nPriority: {task['priority']}\nAssignees: {', '.join(task['assignees'])}")
             st.write("Comments:")
             for comment in task["comments"]:
                 st.write(f"{comment[1]} ({comment[0]}): {comment[2]}")
-
+    
             comment_key = f"new_comment_{task_id}_{len(task['comments'])}"  # Ensure unique key
             comment = st.text_input("Enter your comment", key=comment_key)
             if st.button("Add Comment"):
