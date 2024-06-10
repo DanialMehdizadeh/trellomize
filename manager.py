@@ -1,211 +1,107 @@
 import argparse
 import json
 import os
+from typing import Optional
 
+# Define the file paths for user data
 ADMIN_FILE = 'admin.json'
+DATA_FILE = 'users.json'
 
-def save_admin(username, password):
-    admin_data = {'username': username, 'password': password}
-    with open(ADMIN_FILE, 'w') as file:
-        json.dump(admin_data, file, indent=4)
+def create_admin(username: str, password: str) -> None:
+    """
+    Creates an admin user with the given username and password.
 
-def admin_exists():
-    return os.path.exists(ADMIN_FILE)
+    Args:
+        username (str): The username for the admin.
+        password (str): The password for the admin.
 
-def create_admin(username, password):
-    if admin_exists():
-        print("Error: System manager is already built.")
-    else:
-        save_admin(username, password)
-        print("Administrator created successfully.")
+    Returns:
+        None
+    """
+    if os.path.exists(ADMIN_FILE):
+        print("Admin already exists. Please delete the admin file to create a new admin.")
+        return
+    
+    admin_data = {
+        'username': username,
+        'password': password,
+        'active': True
+    }
+    
+    with open(ADMIN_FILE, 'w') as f:
+        json.dump(admin_data, f)
+    print(f"Admin user '{username}' created successfully.")
 
-class UserActions:
-    @staticmethod
-    def register():
-        users = UserDatabase.load_users()
-        st.sidebar.title("Register a new user")
+def purge_data() -> None:
+    """
+    Purges all data including admin and user information after a confirmation prompt.
 
-        email = st.sidebar.text_input("Email")
-        username = st.sidebar.text_input("Username")
-        password = st.sidebar.text_input("Password", type="password")
+    Args:
+        None
 
-        if st.sidebar.button("Send Verification Code"):
-            if email in [user['email'] for user in users.values()] or username in users:
-                st.sidebar.error("Error: Email or Username already exists!")
-                return
-
-            otp = generate_otp()
-            send_verification_email(email, otp)
-
-            st.session_state.verifying = True
-            st.session_state.email = email
-            st.session_state.username = username
-            st.session_state.password = password
-            st.session_state.otp = otp
-            st.sidebar.success("Verification code sent! Please check your email.")
-
-        if st.session_state.get("verifying", False):
-            verification_code = st.sidebar.text_input("Enter the verification code sent to your email")
-            if st.sidebar.button("Verify and Register"):
-                if verification_code == st.session_state.otp:
-                    hashed_password = bcrypt.hashpw(st.session_state.password.encode('utf-8'), bcrypt.gensalt())
-                    users[st.session_state.username] = {
-                        "email": st.session_state.email,
-                        "password": hashed_password.decode(),
-                        "active": True,
-                        "projects": {"managed": [], "member": []}
-                    }
-                    UserDatabase.save_users(users)
-                    st.sidebar.success("User registered successfully!")
-                    logger.info(f"{username} registered successfully! ")
-                    st.session_state.verifying = False
-                else:
-                    st.sidebar.error("Invalid verification code!")
-
-    @staticmethod
-    def login():
-        users = UserDatabase.load_users()
-        st.sidebar.title("Login to your account")
-
-        username = st.sidebar.text_input("Username")
-        password = st.sidebar.text_input("Password", type="password")
-
-        if st.sidebar.button("Login"):
-            if username not in users:
-                st.sidebar.error("Error: Username does not exist!")
-                return
-
-            if not users[username]["active"]:
-                st.sidebar.error("Error: This account is disabled.")
-                return
-
-            if bcrypt.checkpw(password.encode('utf-8'), users[username]["password"].encode()):
-                st.session_state.logged_in = True
-                st.session_state.username = username
-                st.sidebar.success("Logged in successfully!")
-                logger.info(f"{username} logged in successfully!")
-                st.experimental_rerun()  # Rerun the script to update the session state immediately
-            else:
-                st.sidebar.error("Error: Incorrect password!")
-
-    @staticmethod
-    def disable_account():
-        users = UserDatabase.load_users()
-        st.sidebar.title("Disable a user account")
-
-        username = st.sidebar.text_input("Enter the username to disable")
-
-        if st.sidebar.button("Disable Account"):
-            if username in users:
-                users[username]["active"] = False
-                UserDatabase.save_users(users)
-                st.sidebar.success(f"Account {username} has been disabled successfully!")
-            else:
-                st.sidebar.error("Error: Username does not exist!")
-
-    @staticmethod
-    def register_admin():
-        st.sidebar.title("Register System Manager")
-
-        username = st.sidebar.text_input("Admin Username")
-        password = st.sidebar.text_input("Admin Password", type="password")
-
-        if st.sidebar.button("Create Admin"):
-            if admin_exists():
-                st.sidebar.error("Error: System manager already exists.")
-            else:
-                hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode()
-                save_admin(username, hashed_password)
-                st.sidebar.success("Administrator created successfully.")
-
-    @staticmethod
-    def login_admin():
-        st.sidebar.title("Admin Login")
-
-        username = st.sidebar.text_input("Admin Username")
-        password = st.sidebar.text_input("Admin Password", type="password")
-
-        if st.sidebar.button("Login"):
-            if not admin_exists():
-                st.sidebar.error("Error: No system manager found.")
-                return
-
-            with open(ADMIN_FILE, 'r') as file:
-                admin_data = json.load(file)
-
-            if admin_data['username'] != username:
-                st.sidebar.error("Error: Incorrect username.")
-                return
-
-            if bcrypt.checkpw(password.encode('utf-8'), admin_data['password'].encode()):
-                st.session_state.admin_logged_in = True
-                st.session_state.admin_username = username
-                st.sidebar.success("Admin logged in successfully!")
-                st.experimental_rerun()  # Rerun the script to update the session state immediately
-            else:
-                st.sidebar.error("Error: Incorrect password!")
-
-    @staticmethod
-    def disable_admin():
-        st.sidebar.title("Disable System Manager")
-
-        if not admin_exists():
-            st.sidebar.error("Error: No system manager found.")
-            return
-
-        if st.sidebar.button("Disable Admin"):
+    Returns:
+        None
+    """
+    confirm = input("Are you sure you want to purge all data? This action cannot be undone. (yes/no): ")
+    if confirm.lower() == 'yes':
+        if os.path.exists(ADMIN_FILE):
             os.remove(ADMIN_FILE)
-            st.sidebar.success("System manager account has been disabled successfully!")
-
-# Update the main function to include admin options
-def main():
-    st.sidebar.title("Trellomize")
-    if "logged_in" not in st.session_state:
-        st.session_state.logged_in = False
-        st.session_state.username = None
-
-    if "admin_logged_in" not in st.session_state:
-        st.session_state.admin_logged_in = False
-        st.session_state.admin_username = None
-
-    if st.session_state.logged_in:
-        users = UserDatabase.load_users()
-        user = users[st.session_state.username]
-        user["username"] = st.session_state.username  # Adding the username to user data
-        user_page = UserPage(user, users)
-
-        options = ["Create Project", "Delete Project", "Add Member", "Remove Member", "View Tasks", "View Member Projects", "View Managed Projects", "Create Task", "Logout"]
-        choice = st.sidebar.selectbox("User Actions", options)
-        if choice:
-            user_page.handle_choice(choice)
-    elif st.session_state.admin_logged_in:
-        st.sidebar.title("Admin Panel")
-        admin_options = ["Disable Admin", "Logout"]
-        choice = st.sidebar.selectbox("Admin Actions", admin_options)
-
-        if choice == "Disable Admin":
-            UserActions.disable_admin()
-        elif choice == "Logout":
-            st.session_state.admin_logged_in = False
-            st.session_state.admin_username = None
-            st.success("Admin logged out successfully!")
-            st.experimental_rerun()
+        if os.path.exists(DATA_FILE):
+            os.remove(DATA_FILE)
+        print("All data purged successfully.")
     else:
-        options = ["Register", "Login", "Register Admin", "Admin Login", "Disable Account", "Exit"]
-        choice = st.sidebar.selectbox("Choose an option", options)
+        print("Purge data action canceled.")
 
-        if choice == "Register":
-            UserActions.register()
-        elif choice == "Login":
-            UserActions.login()
-        elif choice == "Register Admin":
-            UserActions.register_admin()
-        elif choice == "Admin Login":
-            UserActions.login_admin()
-        elif choice == "Disable Account":
-            UserActions.disable_account()
-        elif choice == "Exit":
-            st.write("Exiting the system. Goodbye!")
+def deactivate_user(username: str) -> None:
+    """
+    Deactivates the user with the given username.
 
-if __name__ == "__main__":
-    main()
+    Args:
+        username (str): The username to deactivate.
+
+    Returns:
+        None
+    """
+    if not os.path.exists(DATA_FILE):
+        print(f"No data file found to deactivate user '{username}'.")
+        return
+
+    with open(DATA_FILE, 'r') as f:
+        data = json.load(f)
+    
+    if username in data and data[username]['active']:
+        data[username]['active'] = False
+        with open(DATA_FILE, 'w') as f:
+            json.dump(data, f)
+        print(f"User '{username}' has been deactivated.")
+    else:
+        print(f"User '{username}' does not exist or is already deactivated.")
+
+# Set up argparse
+parser = argparse.ArgumentParser(description='System Admin Manager')
+subparsers = parser.add_subparsers(dest='command')
+
+# Subparser for creating admin
+create_admin_parser = subparsers.add_parser('create-admin')
+create_admin_parser.add_argument('--username', required=True, help='Username for the admin')
+create_admin_parser.add_argument('--password', required=True, help='Password for the admin')
+
+# Subparser for purging data
+purge_data_parser = subparsers.add_parser('purge-data')
+
+# Subparser for deactivating a user
+deactivate_user_parser = subparsers.add_parser('deactivate-user')
+deactivate_user_parser.add_argument('--username', required=True, help='Username to deactivate')
+
+# Parse the arguments
+args = parser.parse_args()
+
+# Execute commands based on arguments
+if args.command == 'create-admin':
+    create_admin(args.username, args.password)
+elif args.command == 'purge-data':
+    purge_data()
+elif args.command == 'deactivate-user':
+    deactivate_user(args.username)
+else:
+    parser.print_help()
