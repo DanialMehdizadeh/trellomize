@@ -74,6 +74,6 @@ All user actions are logged in `user_actions.log`. This includes task creation, 
 
 If you have any questions or feedback, feel free to reach out:
 
-- **Danial Mehdizadeh**: [GitHub](https://github.com/DanialMehdizadeh)
-- **Alireza Ahmadi**: [GitHub](https://github.com/AlirezaAhmadi1383)
+- **[Danial Mehdizadeh](https://github.com/DanialMehdizadeh)**
+- **[Alireza Ahmadi](https://github.com/AlirezaAhmadi1383)**
 - **Email**: trellomize@gmail.com
