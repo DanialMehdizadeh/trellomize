@@ -15,7 +15,7 @@ Trellomize is a task and project management web application built using Streamli
 
 1. Clone the repository:
     ```bash
-    git clone https://github.com/yourusername/trellomize.git
+    git clone https://github.com/DanialMehdizadeh/trellomize.git
     cd trellomize
     ```
 
@@ -31,7 +31,7 @@ Trellomize is a task and project management web application built using Streamli
     ```
 
 4. Set up your email credentials:
-    - Open the `trellomize.py` file.
+    - Open the `main.py` file.
     - Replace the `email_password` with your email account password for the sender's email.
 
 5. Run the application:
